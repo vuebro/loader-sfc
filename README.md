@@ -1,10 +1,10 @@
 # Vue SFC Loader
 
-Single File Component loader for Vue3. Load .vue files directly from your HTML. No node.js environment, no build step.
+Vue3 Single File Component (SFC) loader. Load .vue files directly from your browser without any build step.
 
 ## Installation
 
-Install @vuebro/loader-sfc with npm
+Install `@vuebro/loader-sfc` with npm
 
 ```bash
 npm install @vuebro/loader-sfc
@@ -30,3 +30,5 @@ const AdminPage = defineAsyncComponent(() =>
   <AdminPage />
 </template>
 ```
+
+A simple example of using `@vuebro/loader-sfc` in a template Vue 3 + TypeScript + Vite application for dynamic loading and compilation of an SFC module during application runtime in the browser can be found in the repository: [loader-sfc-example](https://github.com/vuebro/loader-sfc-example)
