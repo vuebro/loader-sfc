@@ -21,7 +21,7 @@
     "url": "git+https://github.com/vuebro/loader-sfc.git"
   },
   "license": "AGPL-3.0-only",
-  "version": "1.5.16",
+  "version": "1.5.17",
   "type": "module",
   "main": "./dist/loader-sfc.js",
   "types": "./dist/loader-sfc.d.ts",
