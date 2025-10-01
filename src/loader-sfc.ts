@@ -46,17 +46,31 @@ const addStyle = async (
     log(errors);
     useStyleTag(code, scoped ? { id } : undefined);
   },
-  inject = (code: string) =>
-    import(
+  inject = async (code: string) => {
+    const objectURL = URL.createObjectURL(
+        new Blob([code], { type: "application/javascript" }),
+      ),
       /* @vite-ignore */
-      `data:text/javascript;base64,${btoa(Array.from(new TextEncoder().encode(code), (byte) => String.fromCodePoint(byte)).join(""))}`
-    ),
+      value = (await import(objectURL)) as Record<string, object>;
+    URL.revokeObjectURL(objectURL);
+    return value;
+  },
   loadModule = async (filename: string) => {
-    const { descriptor, errors } = parse(
-      (await (await fetchText(filename)).text()) || body,
-      { filename },
-    );
-    const compilerOptions: CompilerOptions = { expressionPlugins: [] },
+    const id = `data-v-${hash(filename)}`,
+      { descriptor, errors } = parse(
+        (await (await fetchText(filename)).text()) || body,
+        { filename },
+      );
+    const compilerOptions: CompilerOptions = {
+        cacheHandlers: true,
+        comments: false,
+        expressionPlugins: [],
+        hoistStatic: true,
+        optimizeImports: true,
+        scopeId: id,
+        sourceMap: false,
+        ssr: false,
+      },
       scriptBlocks = ["script", "scriptSetup"],
       contents = await Promise.all(
         scriptBlocks.map(async (key) => {
@@ -70,7 +84,6 @@ const addStyle = async (
           return src && (await (await fetchText(src)).text());
         }),
       ),
-      id = `data-v-${hash(filename)}`,
       jsxRuntime = "preserve",
       module: Record<string, object | string> = {},
       scoped = descriptor.styles.some(({ scoped }) => scoped),
@@ -97,11 +110,11 @@ const addStyle = async (
       Object.assign(
         module,
         (
-          (await inject(
+          await inject(
             transforms.length
               ? transform(content, { jsxRuntime, transforms }).code
               : content,
-          )) as Record<string, object>
+          )
         ).default,
       );
     }
@@ -131,9 +144,9 @@ const addStyle = async (
         ),
       );
     }
-    descriptor.styles.forEach((style) => {
-      void addStyle(id, descriptor, style);
-    });
+    await Promise.all(
+      descriptor.styles.map((style) => addStyle(id, descriptor, style)),
+    );
     return module;
   };
 export default loadModule;
