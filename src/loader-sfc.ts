@@ -1,11 +1,6 @@
-import type {
-  CompilerError,
-  CompilerOptions,
-  SFCDescriptor,
-  SFCScriptBlock,
-  SFCStyleBlock,
-} from "@vue/compiler-sfc";
-import type { Transform } from "sucrase";
+import type { SFCTemplateCompileOptions } from "@vue/compiler-sfc";
+import type { Options } from "sucrase";
+import type { Component } from "vue";
 
 import {
   compileScript,
@@ -13,140 +8,90 @@ import {
   compileTemplate,
   parse,
 } from "@vue/compiler-sfc";
-import { useStyleTag } from "@vueuse/core";
 import hash from "hash-sum";
 import { transform } from "sucrase";
 
-const body = "<template></template>",
-  fetchText = async (url: string) => {
-    try {
-      const response = await fetch(url);
-      return response.ok ? response : new Response(body);
-    } catch {
-      return new Response(body);
-    }
-  },
-  log = (msgs: (CompilerError | Error | string)[]) => {
+const log = (msgs: (Error | string)[]) => {
     msgs.forEach((msg) => {
       console.log(msg);
     });
+  },
+  options: Options = {
+    jsxRuntime: "preserve",
+    transforms: ["jsx", "typescript"],
   };
-const addStyle = async (
-    id: string,
-    { filename }: SFCDescriptor,
-    { content, module, scoped = false, src }: SFCStyleBlock,
-  ) => {
-    const { code, errors } = await compileStyleAsync({
-      filename,
-      id,
-      modules: !!module,
-      scoped,
-      source: src ? await (await fetchText(src)).text() : content,
-    });
-    log(errors);
-    useStyleTag(code, scoped ? { id } : undefined);
+
+const fetchText = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      return response.ok ? response : new Response("");
+    } catch {
+      return new Response("");
+    }
   },
   inject = async (code: string) => {
     const objectURL = URL.createObjectURL(
         new Blob([code], { type: "application/javascript" }),
       ),
-      /* @vite-ignore */
-      value = (await import(objectURL)) as Record<string, object>;
+      value = (await import(objectURL)) as Component;
     URL.revokeObjectURL(objectURL);
     return value;
   },
   loadModule = async (filename: string) => {
-    const id = `data-v-${hash(filename)}`,
+    const id = hash(filename),
       { descriptor, errors } = parse(
-        (await (await fetchText(filename)).text()) || body,
-        { filename },
-      );
-    const compilerOptions: CompilerOptions = {
-        cacheHandlers: true,
-        comments: false,
-        expressionPlugins: [],
-        hoistStatic: true,
-        optimizeImports: true,
-        scopeId: id,
-        sourceMap: false,
-        ssr: false,
-      },
-      scriptBlocks = ["script", "scriptSetup"],
-      contents = await Promise.all(
-        scriptBlocks.map(async (key) => {
-          const { lang = "js", src } = (descriptor[
-            key as keyof SFCDescriptor
-          ] ?? {}) as SFCScriptBlock;
-          if (/[jt]sx$/.test(lang))
-            compilerOptions.expressionPlugins?.push("jsx");
-          if (/tsx?$/.test(lang))
-            compilerOptions.expressionPlugins?.push("typescript");
-          return src && (await (await fetchText(src)).text());
-        }),
+        (await (await fetchText(filename)).text()) || "<template></template>",
       ),
-      jsxRuntime = "preserve",
-      module: Record<string, object | string> = {},
-      scoped = descriptor.styles.some(({ scoped }) => scoped),
-      { expressionPlugins: transforms } = compilerOptions as {
-        expressionPlugins: Transform[];
-      };
+      { script, scriptSetup, slotted, styles, template } = descriptor;
+    const templateOptions: Partial<SFCTemplateCompileOptions> = {
+      compilerOptions: {
+        expressionPlugins: ["jsx", "typescript"],
+      },
+      scoped: styles.some(({ scoped }) => scoped),
+      slotted,
+    };
     log(errors);
-    if (scoped) module.__scopeId = id;
-    if (descriptor.script || descriptor.scriptSetup) {
-      scriptBlocks.forEach((key, i) => {
-        const scriptBlock = descriptor[key as keyof SFCDescriptor] as
-          | SFCScriptBlock
-          | undefined;
-        if (scriptBlock && contents[i] !== undefined)
-          scriptBlock.content = contents[i];
-      });
-      const {
-        bindings,
-        content,
-        warnings = [],
-      } = compileScript(descriptor, { id });
-      log(warnings);
-      if (bindings) compilerOptions.bindingMetadata = bindings;
-      Object.assign(
-        module,
-        (
-          await inject(
-            transforms.length
-              ? transform(content, { jsxRuntime, transforms }).code
-              : content,
-          )
-        ).default,
-      );
+
+    let el = document.getElementById(id);
+    if (!(el instanceof HTMLStyleElement)) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
     }
-    if (descriptor.template) {
-      const { code, errors, tips } = compileTemplate({
-        ast: descriptor.template.ast,
-        compilerOptions,
-        filename: descriptor.filename,
+    el.textContent = (
+      await Promise.all(
+        styles.map(async ({ content, module, scoped = false, src }) => {
+          const { code, errors } = await compileStyleAsync({
+            filename,
+            id,
+            modules: !!module,
+            scoped,
+            source: src ? await (await fetchText(src)).text() : content,
+          });
+          log(errors);
+          return code;
+        }),
+      )
+    ).join("\n");
+
+    if (script || scriptSetup) {
+      const { content, warnings = [] } = compileScript(descriptor, {
         id,
-        scoped,
-        slotted: descriptor.slotted,
-        source: descriptor.template.src
-          ? await (await fetchText(descriptor.template.src)).text()
-          : descriptor.template.content,
-        // @ts-expect-error TODO remove expect-error after 3.6
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        vapor: descriptor.vapor,
+        ...(template ? templateOptions : {}),
+      });
+      log(warnings);
+      return inject(transform(content, options).code);
+    } else if (template) {
+      const { content: source } = template;
+      const { code, errors, tips } = compileTemplate({
+        ...templateOptions,
+        filename,
+        id,
+        source,
       });
       log(errors);
       log(tips);
-      Object.assign(
-        module,
-        await inject(
-          transforms.length
-            ? transform(code, { jsxRuntime, transforms }).code
-            : code,
-        ),
-      );
-    }
-    await Promise.all(
-      descriptor.styles.map((style) => addStyle(id, descriptor, style)),
-    );
-    return module;
+      return inject(transform(code, options).code);
+    } else return {};
   };
 export default loadModule;
