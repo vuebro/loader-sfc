@@ -1,6 +1,5 @@
-import type { SFCTemplateCompileOptions } from "@vue/compiler-sfc";
+import type { CompilerOptions } from "@vue/compiler-sfc";
 import type { Options } from "sucrase";
-import type { Component } from "vue";
 
 import {
   compileScript,
@@ -33,23 +32,21 @@ const fetchText = async (url: string) => {
     const objectURL = URL.createObjectURL(
         new Blob([code], { type: "application/javascript" }),
       ),
-      value = (await import(objectURL)) as Component;
+      value = (await import(objectURL)) as Record<string, object>;
     URL.revokeObjectURL(objectURL);
     return value;
   },
   loadModule = async (filename: string) => {
-    const id = hash(filename),
+    const compilerOptions: CompilerOptions = {
+        expressionPlugins: ["jsx", "typescript"],
+      },
+      id = hash(filename),
+      module: Record<string, object | string> = {},
       { descriptor, errors } = parse(
         (await (await fetchText(filename)).text()) || "<template></template>",
       ),
       { script, scriptSetup, slotted, styles, template } = descriptor;
-    const templateOptions: Partial<SFCTemplateCompileOptions> = {
-      compilerOptions: {
-        expressionPlugins: ["jsx", "typescript"],
-      },
-      scoped: styles.some(({ scoped }) => scoped),
-      slotted,
-    };
+
     log(errors);
 
     let el = document.getElementById(id);
@@ -75,23 +72,34 @@ const fetchText = async (url: string) => {
     ).join("\n");
 
     if (script || scriptSetup) {
-      const { content, warnings = [] } = compileScript(descriptor, {
-        id,
-        ...(template ? templateOptions : {}),
-      });
+      const {
+        bindings,
+        content,
+        warnings = [],
+      } = compileScript(descriptor, { id });
       log(warnings);
-      return inject(transform(content, options).code);
-    } else if (template) {
+      if (bindings) compilerOptions.bindingMetadata = bindings;
+      Object.assign(
+        module,
+        (await inject(transform(content, options).code)).default,
+      );
+    }
+
+    if (template) {
       const { content: source } = template;
       const { code, errors, tips } = compileTemplate({
-        ...templateOptions,
+        compilerOptions,
         filename,
         id,
+        scoped: styles.some(({ scoped }) => scoped),
+        slotted,
         source,
       });
       log(errors);
       log(tips);
-      return inject(transform(code, options).code);
-    } else return {};
+      Object.assign(module, await inject(transform(code, options).code));
+    }
+
+    return module;
   };
 export default loadModule;
