@@ -37,15 +37,20 @@ const fetchText = async (url: string) => {
     return value;
   },
   loadModule = async (filename: string) => {
-    const compilerOptions: CompilerOptions = {
-        expressionPlugins: ["jsx", "typescript"],
-      },
-      id = hash(filename),
-      module: Record<string, object | string> = {},
+    const alerts = new Set<string>(),
+      id = `data-v-${hash(filename)}`,
       { descriptor, errors } = parse(
         (await (await fetchText(filename)).text()) || "<template></template>",
       ),
       { script, scriptSetup, slotted, styles, template } = descriptor;
+
+    const compilerOptions: CompilerOptions = {
+        expressionPlugins: ["jsx", "typescript"],
+        scopeId: id,
+        slotted,
+      },
+      scoped = styles.some(({ scoped }) => scoped),
+      module: Record<string, object | string> = scoped ? { __scopeId: id } : {};
 
     log(errors);
 
@@ -58,10 +63,11 @@ const fetchText = async (url: string) => {
     el.textContent = (
       await Promise.all(
         styles.map(async ({ content, module, scoped = false, src }) => {
+          if (module)
+            alerts.add("<style module> is not supported in the playground.");
           const { code, errors } = await compileStyleAsync({
             filename,
             id,
-            modules: !!module,
             scoped,
             source: src ? await (await fetchText(src)).text() : content,
           });
@@ -70,6 +76,8 @@ const fetchText = async (url: string) => {
         }),
       )
     ).join("\n");
+
+    log([...alerts]);
 
     if (script || scriptSetup) {
       const {
@@ -86,12 +94,13 @@ const fetchText = async (url: string) => {
     }
 
     if (template) {
-      const { content: source } = template;
+      const { ast, content: source } = template;
       const { code, errors, tips } = compileTemplate({
+        ...(ast && { ast }),
         compilerOptions,
         filename,
         id,
-        scoped: styles.some(({ scoped }) => scoped),
+        scoped,
         slotted,
         source,
       });
