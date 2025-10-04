@@ -7,5 +7,10 @@
   "eslint.validate": ["typescript", "vue"],
   "typescript.tsdk": "node_modules/typescript/lib",
   "git.followTagsWhenSync": true,
-  "Codegeex.RepoIndex": true
+  "Codegeex.RepoIndex": true,
+  "Codegeex.Chat.LanguagePreference": "English",
+  "Codegeex.Comment.LanguagePreference": "English",
+  "Codegeex.SidebarUI.LanguagePreference": "English",
+  "Codegeex.CommitMessage.LanguagePreference": "English",
+  "Codegeex.CompletionModel": "CodeGeeX Pro[Beta]"
 }
