@@ -62,11 +62,9 @@ export default async (filename: string) => {
     component: Component = scoped ? { __scopeId: id } : {};
 
   if (!(document.getElementById(id) instanceof HTMLStyleElement)) {
-    const el = document.createElement("style"),
-      warnings = new Set<string>();
+    const warnings = new Set<string>();
 
-    el.id = id;
-    el.textContent = (
+    const textContent = (
       await Promise.all(
         styles.map(async ({ content, module, scoped = false, src }) => {
           const { code, errors } = await compileStyleAsync({
@@ -84,8 +82,16 @@ export default async (filename: string) => {
           return code;
         }),
       )
-    ).join("\n");
-    document.head.appendChild(el);
+    )
+      .join("\n")
+      .trim();
+
+    if (textContent) {
+      const el = document.createElement("style");
+      el.id = id;
+      el.textContent = textContent;
+      document.head.appendChild(el);
+    }
 
     log([...warnings]);
   }
