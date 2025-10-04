@@ -1,20 +1,22 @@
-import type { CompilerOptions } from "@vue/compiler-sfc";
 import type { Options } from "sucrase";
+import type { Component } from "vue";
+import type { CompilerOptions } from "vue/compiler-sfc";
 
+import hash from "hash-sum";
+import { transform } from "sucrase";
 import {
   compileScript,
   compileStyleAsync,
   compileTemplate,
   parse,
-} from "@vue/compiler-sfc";
-import hash from "hash-sum";
-import { transform } from "sucrase";
+} from "vue/compiler-sfc";
 
 /* -------------------------------------------------------------------------- */
 
 const fetchText = async (url: string) => {
     try {
       const response = await fetch(url);
+
       return response.ok ? response : new Response("");
     } catch {
       return new Response("");
@@ -25,7 +27,9 @@ const fetchText = async (url: string) => {
         new Blob([code], { type: "application/javascript" }),
       ),
       value = (await import(objectURL)) as Record<string, object>;
+
     URL.revokeObjectURL(objectURL);
+
     return value;
   },
   log = (msgs: (Error | string)[]) => {
@@ -47,38 +51,43 @@ export default async (filename: string) => {
     ),
     { script, scriptSetup, slotted, styles, template } = descriptor;
 
+  log(errors);
+
   const compilerOptions: CompilerOptions = {
       expressionPlugins: ["jsx", "typescript"],
       scopeId: id,
       slotted,
     },
     scoped = styles.some(({ scoped }) => scoped),
-    module: Record<string, object | string> = scoped ? { __scopeId: id } : {};
-
-  log(errors);
+    component: Component = scoped ? { __scopeId: id } : {};
 
   if (!(document.getElementById(id) instanceof HTMLStyleElement)) {
-    const alerts = new Set<string>(),
-      el = document.createElement("style");
+    const el = document.createElement("style"),
+      warnings = new Set<string>();
+
     el.id = id;
     el.textContent = (
       await Promise.all(
         styles.map(async ({ content, module, scoped = false, src }) => {
-          if (module)
-            alerts.add("<style module> is not supported in the playground.");
           const { code, errors } = await compileStyleAsync({
             filename,
             id,
             scoped,
             source: src ? await (await fetchText(src)).text() : content,
           });
+
+          if (module)
+            warnings.add("<style module> is not supported in the playground.");
+
           log(errors);
+
           return code;
         }),
       )
     ).join("\n");
     document.head.appendChild(el);
-    log([...alerts]);
+
+    log([...warnings]);
   }
 
   if (script || scriptSetup) {
@@ -87,29 +96,33 @@ export default async (filename: string) => {
       content,
       warnings = [],
     } = compileScript(descriptor, { id });
-    log(warnings);
-    if (bindings) compilerOptions.bindingMetadata = bindings;
+
+    if (template && bindings) compilerOptions.bindingMetadata = bindings;
     Object.assign(
-      module,
+      component,
       (await inject(transform(content, options).code)).default,
     );
+
+    log(warnings);
   }
 
   if (template) {
-    const { ast, content: source } = template;
-    const { code, errors, tips } = compileTemplate({
-      ...(ast && { ast }),
-      compilerOptions,
-      filename,
-      id,
-      scoped,
-      slotted,
-      source,
-    });
-    log(errors);
+    const { ast, content: source } = template,
+      { code, errors, tips } = compileTemplate({
+        ...(ast && { ast }),
+        compilerOptions,
+        filename,
+        id,
+        scoped,
+        slotted,
+        source,
+      });
+
+    Object.assign(component, await inject(transform(code, options).code));
+
     log(tips);
-    Object.assign(module, await inject(transform(code, options).code));
+    log(errors);
   }
 
-  return module;
+  return component;
 };
