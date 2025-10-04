@@ -10,15 +10,7 @@ import {
 import hash from "hash-sum";
 import { transform } from "sucrase";
 
-const log = (msgs: (Error | string)[]) => {
-    msgs.forEach((msg) => {
-      console.log(msg);
-    });
-  },
-  options: Options = {
-    jsxRuntime: "preserve",
-    transforms: ["jsx", "typescript"],
-  };
+/* -------------------------------------------------------------------------- */
 
 const fetchText = async (url: string) => {
     try {
@@ -36,30 +28,39 @@ const fetchText = async (url: string) => {
     URL.revokeObjectURL(objectURL);
     return value;
   },
-  loadModule = async (filename: string) => {
+  log = (msgs: (Error | string)[]) => {
+    msgs.forEach((msg) => {
+      console.log(msg);
+    });
+  },
+  options: Options = {
+    jsxRuntime: "preserve",
+    transforms: ["jsx", "typescript"],
+  };
+
+/* -------------------------------------------------------------------------- */
+
+export default async (filename: string) => {
+  const id = `data-v-${hash(filename)}`,
+    { descriptor, errors } = parse(
+      (await (await fetchText(filename)).text()) || "<template></template>",
+    ),
+    { script, scriptSetup, slotted, styles, template } = descriptor;
+
+  const compilerOptions: CompilerOptions = {
+      expressionPlugins: ["jsx", "typescript"],
+      scopeId: id,
+      slotted,
+    },
+    scoped = styles.some(({ scoped }) => scoped),
+    module: Record<string, object | string> = scoped ? { __scopeId: id } : {};
+
+  log(errors);
+
+  if (!(document.getElementById(id) instanceof HTMLStyleElement)) {
     const alerts = new Set<string>(),
-      id = `data-v-${hash(filename)}`,
-      { descriptor, errors } = parse(
-        (await (await fetchText(filename)).text()) || "<template></template>",
-      ),
-      { script, scriptSetup, slotted, styles, template } = descriptor;
-
-    const compilerOptions: CompilerOptions = {
-        expressionPlugins: ["jsx", "typescript"],
-        scopeId: id,
-        slotted,
-      },
-      scoped = styles.some(({ scoped }) => scoped),
-      module: Record<string, object | string> = scoped ? { __scopeId: id } : {};
-
-    log(errors);
-
-    let el = document.getElementById(id);
-    if (!(el instanceof HTMLStyleElement)) {
       el = document.createElement("style");
-      el.id = id;
-      document.head.appendChild(el);
-    }
+    el.id = id;
     el.textContent = (
       await Promise.all(
         styles.map(async ({ content, module, scoped = false, src }) => {
@@ -76,39 +77,39 @@ const fetchText = async (url: string) => {
         }),
       )
     ).join("\n");
-
+    document.head.appendChild(el);
     log([...alerts]);
+  }
 
-    if (script || scriptSetup) {
-      const {
-        bindings,
-        content,
-        warnings = [],
-      } = compileScript(descriptor, { id });
-      log(warnings);
-      if (bindings) compilerOptions.bindingMetadata = bindings;
-      Object.assign(
-        module,
-        (await inject(transform(content, options).code)).default,
-      );
-    }
+  if (script || scriptSetup) {
+    const {
+      bindings,
+      content,
+      warnings = [],
+    } = compileScript(descriptor, { id });
+    log(warnings);
+    if (bindings) compilerOptions.bindingMetadata = bindings;
+    Object.assign(
+      module,
+      (await inject(transform(content, options).code)).default,
+    );
+  }
 
-    if (template) {
-      const { ast, content: source } = template;
-      const { code, errors, tips } = compileTemplate({
-        ...(ast && { ast }),
-        compilerOptions,
-        filename,
-        id,
-        scoped,
-        slotted,
-        source,
-      });
-      log(errors);
-      log(tips);
-      Object.assign(module, await inject(transform(code, options).code));
-    }
+  if (template) {
+    const { ast, content: source } = template;
+    const { code, errors, tips } = compileTemplate({
+      ...(ast && { ast }),
+      compilerOptions,
+      filename,
+      id,
+      scoped,
+      slotted,
+      source,
+    });
+    log(errors);
+    log(tips);
+    Object.assign(module, await inject(transform(code, options).code));
+  }
 
-    return module;
-  };
-export default loadModule;
+  return module;
+};
