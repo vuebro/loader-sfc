@@ -1,6 +1,11 @@
 import type { Options, Transform } from "sucrase";
 import type { Component } from "vue";
-import type { CompilerOptions } from "vue/compiler-sfc";
+import type {
+  CompilerOptions,
+  SFCAsyncStyleCompileOptions,
+  SFCScriptCompileOptions,
+  SFCTemplateCompileOptions,
+} from "vue/compiler-sfc";
 
 import hash from "hash-sum";
 import { transform } from "sucrase";
@@ -34,31 +39,50 @@ const fetchText = async (url: string) => {
 
 /* -------------------------------------------------------------------------- */
 
-export default async (filename: string) => {
-  const id = `data-v-${hash(filename)}`,
-    langs = new Set(),
-    { descriptor, errors: alerts } = parse(
+export default async (
+  filename: string,
+  options?: {
+    script?: SFCScriptCompileOptions;
+    style?: SFCAsyncStyleCompileOptions;
+    template?: SFCTemplateCompileOptions;
+  },
+) => {
+  const styleErrors: Error[] = [],
+    { descriptor, errors: parseErrors } = parse(
       (await (await fetchText(filename)).text()) || "<template></template>",
     ),
     { script, scriptSetup, slotted, styles, template } = descriptor;
-
-  [script, scriptSetup].forEach((scriptBlock) => {
-    const { lang = "js" } = scriptBlock ?? {};
-    if (/[jt]sx$/.test(lang)) langs.add("jsx");
-    if (/tsx?$/.test(lang)) langs.add("typescript");
-  });
-
-  const compilerOptions: CompilerOptions = {
+  let moduleWarning: Error | undefined;
+  const id = `data-v-${hash(filename)}`,
+    langs = new Set(
+      [script, scriptSetup].flatMap((scriptBlock) => {
+        const { lang = "js" } = scriptBlock ?? {};
+        return [
+          ...(/[jt]sx$/.test(lang) ? ["jsx"] : []),
+          ...(/tsx?$/.test(lang) ? ["typescript"] : []),
+        ];
+      }),
+    ),
+    compilerOptions: CompilerOptions = {
       expressionPlugins: [...langs] as ("jsx" | "typescript")[],
       scopeId: id,
       slotted,
     },
     scoped = styles.some(({ scoped }) => scoped),
     component: Component = scoped ? { __scopeId: id } : {},
-    options: Options = {
-      jsxRuntime: "preserve",
-      transforms: [...langs] as Transform[],
+    templateOptions: Partial<SFCTemplateCompileOptions> = {
+      compilerOptions,
+      scoped,
+      slotted,
     },
+    scriptOptions: SFCScriptCompileOptions = {
+      id,
+      inlineTemplate: true,
+      templateOptions,
+      ...options?.script,
+    },
+    isCompileTemplate =
+      template && (!scriptSetup || !scriptOptions.inlineTemplate),
     style = !(document.getElementById(id) instanceof HTMLStyleElement)
       ? Promise.all(
           styles.map(
@@ -68,40 +92,50 @@ export default async (filename: string) => {
                 id,
                 scoped,
                 source: src ? await (await fetchText(src)).text() : content,
+                ...options?.style,
               });
-              if (module)
-                errors.push(
-                  Error("<style module> is not supported in the playground."),
+              if (module && !moduleWarning)
+                moduleWarning = Error(
+                  "<style module> is not supported in the playground.",
                 );
-              alerts.push(...errors);
+              styleErrors.push(...errors);
               return code;
             },
           ),
         )
       : Promise.resolve([]),
-    { ast, content: source } = template ?? {},
-    { bindings, content, warnings } =
-      script || scriptSetup ? compileScript(descriptor, { id }) : {};
-  if (source && bindings) compilerOptions.bindingMetadata = bindings;
-  const { code, errors, tips } =
-    source !== undefined
-      ? compileTemplate({
-          ...(ast ?? {}),
-          compilerOptions,
-          filename,
-          id,
-          scoped,
-          slotted,
-          source,
-        })
-      : {};
+    sucraseOptions: Options = {
+      jsxRuntime: "preserve",
+      transforms: [...langs] as Transform[],
+    },
+    { ast, content: source = "" } = template ?? {},
+    {
+      bindings,
+      content,
+      warnings: scriptWarnings,
+    } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
+  if (bindings && isCompileTemplate) compilerOptions.bindingMetadata = bindings;
+  const {
+    code,
+    errors: templateErrors,
+    tips: templateTips,
+  } = isCompileTemplate
+    ? compileTemplate({
+        ...ast,
+        filename,
+        id,
+        source,
+        ...templateOptions,
+        ...options?.template,
+      })
+    : {};
   const [styleResult, scriptResult, templateResult] = await Promise.all([
       style,
       content
-        ? inject(langs.size ? transform(content, options).code : content)
+        ? inject(langs.size ? transform(content, sucraseOptions).code : content)
         : Promise.resolve(undefined),
       code
-        ? inject(langs.size ? transform(code, options).code : code)
+        ? inject(langs.size ? transform(code, sucraseOptions).code : code)
         : Promise.resolve(undefined),
     ]),
     textContent = styleResult.join("\n").trim();
@@ -113,10 +147,15 @@ export default async (filename: string) => {
   }
   Object.assign(component, scriptResult?.default);
   Object.assign(component, templateResult);
-  [...alerts, ...(warnings ?? []), ...(tips ?? []), ...(errors ?? [])].forEach(
-    (msg) => {
-      console.log(msg);
-    },
-  );
+  [
+    ...parseErrors,
+    ...(scriptWarnings ?? []),
+    ...(templateTips ?? []),
+    ...(templateErrors ?? []),
+    ...styleErrors,
+    ...(moduleWarning ? [moduleWarning] : []),
+  ].forEach((msg) => {
+    console.log(msg);
+  });
   return component;
 };
