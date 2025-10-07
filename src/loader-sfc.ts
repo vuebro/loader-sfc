@@ -42,9 +42,10 @@ const fetchText = async (url: string) => {
 export default async (
   filename: string,
   options?: {
-    script?: SFCScriptCompileOptions;
-    style?: SFCAsyncStyleCompileOptions;
-    template?: SFCTemplateCompileOptions;
+    compiler?: Partial<CompilerOptions>;
+    script?: Partial<SFCScriptCompileOptions>;
+    style?: Partial<SFCAsyncStyleCompileOptions>;
+    template?: Partial<SFCTemplateCompileOptions>;
   },
 ) => {
   const styleErrors: Error[] = [],
@@ -67,6 +68,7 @@ export default async (
       expressionPlugins: [...langs] as ("jsx" | "typescript")[],
       scopeId: id,
       slotted,
+      ...options?.compiler,
     },
     scoped = styles.some(({ scoped }) => scoped),
     component: Component = scoped ? { __scopeId: id } : {},
@@ -77,7 +79,6 @@ export default async (
     },
     scriptOptions: SFCScriptCompileOptions = {
       id,
-      inlineTemplate: true,
       templateOptions,
       ...options?.script,
     },
