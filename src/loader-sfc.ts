@@ -1,8 +1,10 @@
+import type { ParserPlugin } from "@babel/parser";
 import type { Options, Transform } from "sucrase";
 import type { Component } from "vue";
 import type {
   CompilerOptions,
   SFCAsyncStyleCompileOptions,
+  SFCParseOptions,
   SFCScriptCompileOptions,
   SFCTemplateCompileOptions,
 } from "vue/compiler-sfc";
@@ -43,17 +45,21 @@ export default async (
   filename: string,
   options?: {
     compiler?: Partial<CompilerOptions>;
+    parse?: Partial<SFCParseOptions>;
     script?: Partial<SFCScriptCompileOptions>;
     style?: Partial<SFCAsyncStyleCompileOptions>;
     template?: Partial<SFCTemplateCompileOptions>;
   },
 ) => {
   const styleErrors: Error[] = [],
+    { compiler: { expressionPlugins, ...restCompilerOptions } = {} } =
+      options ?? {},
     { descriptor, errors: parseErrors } = parse(
       (await (await fetchText(filename)).text()) || "<template></template>",
+      options?.parse,
     ),
     { script, scriptSetup, slotted, styles, template } = descriptor;
-  let moduleWarning: Error | undefined;
+  let moduleWarning = "";
   const id = `data-v-${hash(filename)}`,
     langs = new Set(
       [script, scriptSetup].flatMap((scriptBlock) => {
@@ -61,14 +67,16 @@ export default async (
         return [
           ...(/[jt]sx$/.test(lang) ? ["jsx"] : []),
           ...(/tsx?$/.test(lang) ? ["typescript"] : []),
-        ];
+        ] as ParserPlugin[];
       }),
     ),
     compilerOptions: CompilerOptions = {
-      expressionPlugins: [...langs] as ("jsx" | "typescript")[],
+      expressionPlugins: [
+        ...new Set([...(expressionPlugins ?? []), ...langs]),
+      ] as ParserPlugin[],
       scopeId: id,
       slotted,
-      ...options?.compiler,
+      ...restCompilerOptions,
     },
     scoped = styles.some(({ scoped }) => scoped),
     component: Component = scoped ? { __scopeId: id } : {},
@@ -82,27 +90,27 @@ export default async (
       templateOptions,
       ...options?.script,
     },
-    isCompileTemplate =
-      template && (!scriptSetup || !scriptOptions.inlineTemplate),
     style = !(document.getElementById(id) instanceof HTMLStyleElement)
       ? Promise.all(
-          styles.map(
-            async ({ content, module = false, scoped = false, src }) => {
+          styles.map(async ({ content, module, scoped = false, src }) => {
+            const modules = !!module;
+            if (modules) {
+              moduleWarning =
+                "<style module> is not supported in the playground.";
+              return "";
+            } else {
               const { code, errors } = await compileStyleAsync({
                 filename,
                 id,
+                modules,
                 scoped,
                 source: src ? await (await fetchText(src)).text() : content,
                 ...options?.style,
               });
-              if (module && !moduleWarning)
-                moduleWarning = Error(
-                  "<style module> is not supported in the playground.",
-                );
               styleErrors.push(...errors);
               return code;
-            },
-          ),
+            }
+          }),
         )
       : Promise.resolve([]),
     sucraseOptions: Options = {
@@ -115,12 +123,12 @@ export default async (
       content,
       warnings: scriptWarnings,
     } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
-  if (bindings && isCompileTemplate) compilerOptions.bindingMetadata = bindings;
+  if (bindings) compilerOptions.bindingMetadata = bindings;
   const {
     code,
     errors: templateErrors,
     tips: templateTips,
-  } = isCompileTemplate
+  } = template && (!scriptSetup || !scriptOptions.inlineTemplate)
     ? compileTemplate({
         ...ast,
         filename,
