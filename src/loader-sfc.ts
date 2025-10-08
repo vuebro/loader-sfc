@@ -43,25 +43,30 @@ const fetchText = async (url: string) => {
 
 export default async (
   filename: string,
-  options?: {
-    parse?: Partial<SFCParseOptions>;
-    script?: Partial<SFCScriptCompileOptions>;
-    style?: Partial<SFCAsyncStyleCompileOptions>;
-    template?: Partial<SFCTemplateCompileOptions>;
-  },
+  {
+    parseOptions,
+    scriptOptions: {
+      templateOptions: {
+        compilerOptions: { expressionPlugins, ...restCompilerOptions } = {},
+        ...restTemplateOptions
+      } = {},
+      ...restScriptOptions
+    } = {},
+    styleOptions,
+  }:
+    | undefined
+    | {
+        parseOptions?: Partial<SFCParseOptions>;
+        scriptOptions?: Partial<SFCScriptCompileOptions>;
+        styleOptions?: Partial<SFCAsyncStyleCompileOptions>;
+      } = {},
 ) => {
   const styleErrors: Error[] = [],
     { descriptor, errors: parseErrors } = parse(
       (await (await fetchText(filename)).text()) || "<template></template>",
-      options?.parse,
+      parseOptions,
     ),
-    { script, scriptSetup, slotted, styles, template } = descriptor,
-    {
-      template: {
-        compilerOptions: { expressionPlugins, ...restCompilerOptions } = {},
-        ...restTemplateOptions
-      } = {},
-    } = options ?? {};
+    { script, scriptSetup, slotted, styles, template } = descriptor;
   let moduleWarning = "";
   const id = `data-v-${hash(filename)}`,
     langs = new Set(
@@ -92,7 +97,7 @@ export default async (
     scriptOptions: SFCScriptCompileOptions = {
       id,
       templateOptions,
-      ...options?.script,
+      ...restScriptOptions,
     },
     style = !(document.getElementById(id) instanceof HTMLStyleElement)
       ? Promise.all(
@@ -109,7 +114,7 @@ export default async (
                 modules,
                 scoped,
                 source: src ? await (await fetchText(src)).text() : content,
-                ...options?.style,
+                ...styleOptions,
               });
               styleErrors.push(...errors);
               return code;
