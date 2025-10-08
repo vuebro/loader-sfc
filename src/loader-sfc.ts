@@ -44,7 +44,6 @@ const fetchText = async (url: string) => {
 export default async (
   filename: string,
   options?: {
-    compiler?: Partial<CompilerOptions>;
     parse?: Partial<SFCParseOptions>;
     script?: Partial<SFCScriptCompileOptions>;
     style?: Partial<SFCAsyncStyleCompileOptions>;
@@ -52,13 +51,17 @@ export default async (
   },
 ) => {
   const styleErrors: Error[] = [],
-    { compiler: { expressionPlugins, ...restCompilerOptions } = {} } =
-      options ?? {},
     { descriptor, errors: parseErrors } = parse(
       (await (await fetchText(filename)).text()) || "<template></template>",
       options?.parse,
     ),
-    { script, scriptSetup, slotted, styles, template } = descriptor;
+    { script, scriptSetup, slotted, styles, template } = descriptor,
+    {
+      template: {
+        compilerOptions: { expressionPlugins, ...restCompilerOptions } = {},
+        ...restTemplateOptions
+      } = {},
+    } = options ?? {};
   let moduleWarning = "";
   const id = `data-v-${hash(filename)}`,
     langs = new Set(
@@ -84,6 +87,7 @@ export default async (
       compilerOptions,
       scoped,
       slotted,
+      ...restTemplateOptions,
     },
     scriptOptions: SFCScriptCompileOptions = {
       id,
@@ -135,7 +139,6 @@ export default async (
         id,
         source,
         ...templateOptions,
-        ...options?.template,
       })
     : {};
   const [styleResult, scriptResult, templateResult] = await Promise.all([
