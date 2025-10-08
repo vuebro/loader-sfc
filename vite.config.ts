@@ -12,7 +12,7 @@ export default defineConfig({
     },
     rollupOptions: {
       external: ["vue"],
-      plugins: [terser({ format: { comments: false } })],
+      plugins: [terser({ format: { comments: false }, mangle: true })],
     },
   },
 });
