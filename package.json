@@ -47,6 +47,7 @@
     "vite": "^7.1.9"
   },
   "dependencies": {
+    "consola": "^3.4.2",
     "hash-sum": "^2.0.0",
     "sucrase": "^3.35.0",
     "vue": "^3.5.22"
