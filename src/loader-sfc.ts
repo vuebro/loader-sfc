@@ -100,13 +100,13 @@ export default async (
   /*                      Загрузка и компилирование стилей                      */
   /* -------------------------------------------------------------------------- */
 
-  let styleWarning;
+  let styleWarning = "";
   const styleErrors: Error[] = [];
   const style = !(document.getElementById(id) instanceof HTMLStyleElement)
     ? Promise.all(
         styles.map(async ({ content, module, scoped = false, src }) => {
           const modules = !!module;
-          if (modules) {
+          if (modules && !styleWarning) {
             styleWarning = "<style module> is not supported in the playground.";
             return "";
           } else {
@@ -194,9 +194,19 @@ export default async (
   /*                  Вывод ошибок, предупреждений и подсказок                  */
   /* -------------------------------------------------------------------------- */
 
-  consola.error(parseErrors, templateErrors, styleErrors);
-  consola.warn(scriptWarnings, styleWarning);
-  consola.info(templateTips);
+  [...parseErrors, ...(templateErrors ?? []), ...styleErrors].forEach(
+    (error) => {
+      consola.error(error);
+    },
+  );
+  [...(scriptWarnings ?? []), ...(styleWarning ? [styleWarning] : [])].forEach(
+    (warn) => {
+      consola.warn(warn);
+    },
+  );
+  [...(templateTips ?? [])].forEach((info) => {
+    consola.info(info);
+  });
 
   /* -------------------------------------------------------------------------- */
   /*                      Получение и обработка результатов                     */
