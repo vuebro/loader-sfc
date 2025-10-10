@@ -86,13 +86,15 @@ export default async (
 
   const { script, scriptSetup, slotted, styles, template } = descriptor;
   const langs = new Set(
-      [script, scriptSetup].flatMap((scriptBlock) => {
-        const { lang = "js" } = scriptBlock ?? {};
-        return [
-          ...(/[jt]sx$/.test(lang) ? ["jsx"] : []),
-          ...(/tsx?$/.test(lang) ? ["typescript"] : []),
-        ] as ParserPlugin[];
-      }),
+      [script, scriptSetup]
+        .filter((scriptBlock) => scriptBlock !== null)
+        .flatMap(
+          ({ lang = "js" }) =>
+            [
+              ...(/[jt]sx$/.test(lang) ? ["jsx"] : []),
+              ...(/tsx?$/.test(lang) ? ["typescript"] : []),
+            ] as ParserPlugin[],
+        ),
     ),
     { ast, content: source = "" } = template ?? {};
 
