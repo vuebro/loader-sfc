@@ -240,5 +240,5 @@ export default async (
   /*                    Формирование возвращаемого компонента                   */
   /* -------------------------------------------------------------------------- */
 
-  return { __scopeId: id, ...scriptResult?.default, ...templateResult };
+  return { __scopeId: id, ...scriptResult?.["default"], ...templateResult };
 };
