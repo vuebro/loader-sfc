@@ -1,21 +1,21 @@
 import terser from "@rollup/plugin-terser";
-import { defineConfig } from "vite";
+import config from "@vuebro/configs/vite";
+import { defineConfig, mergeConfig } from "vite";
 
-/* -------------------------------------------------------------------------- */
-/*     Настройка vite для сборки библиотеки loader-sfc.esm-browser.prod.js    */
-/* -------------------------------------------------------------------------- */
-
-export default defineConfig({
-  build: {
-    emptyOutDir: false,
-    lib: {
-      entry: "src/loader-sfc.ts",
-      fileName: "loader-sfc.esm-browser.prod",
-      formats: ["es"],
+export default mergeConfig(
+  config,
+  defineConfig({
+    build: {
+      emptyOutDir: false,
+      lib: {
+        entry: "src/loader-sfc.ts",
+        fileName: "loader-sfc.esm-browser.prod",
+        formats: ["es"],
+      },
+      rollupOptions: {
+        external: ["vue"],
+        plugins: [terser()],
+      },
     },
-    rollupOptions: {
-      external: ["vue"],
-      plugins: [terser()],
-    },
-  },
-});
+  }),
+);
