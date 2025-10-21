@@ -1,6 +1,6 @@
 {
   "name": "@vuebro/loader-sfc",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "description": "Vue3 Single File Component (SFC) loader. Load .vue files directly from your browser without any build step.",
   "keywords": [
     "vue",
