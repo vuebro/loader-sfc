@@ -34,15 +34,13 @@
   },
   "prettier": "@vuebro/configs/prettierrc",
   "dependencies": {
-    "consola": "^3.4.2",
     "hash-sum": "^2.0.0",
-    "sucrase": "^3.35.0",
-    "vue": "^3.5.22"
+    "sucrase": "^3.35.0"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
     "@types/hash-sum": "^1.0.2",
     "@types/node": "^24.9.1",
-    "@vuebro/configs": "^1.1.34"
+    "@vuebro/configs": "^1.1.38"
   }
 }
