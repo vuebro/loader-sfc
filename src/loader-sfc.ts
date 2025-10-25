@@ -16,25 +16,14 @@ import {
 } from "vue/compiler-sfc";
 import { consola } from "consola/browser";
 import { transform } from "sucrase";
+import { ofetch } from "ofetch";
 import hash from "hash-sum";
 
 /* -------------------------------------------------------------------------- */
 /*                              Служебные функции                             */
 /* -------------------------------------------------------------------------- */
 
-const fetching = async (input: string, resolver = "text") => {
-    try {
-      const response = await fetch(input);
-      if (response.ok) {
-        const method = response[resolver as keyof Response];
-        if (typeof method === "function") return await method();
-        else throw new Error(`Invalid resolver "${resolver}"`);
-      } else throw new Error(`Response status: ${response.status.toString()}`);
-    } catch (error) {
-      consola.error(error);
-    }
-  },
-  inject = async (code: string) => {
+const inject = async (code: string) => {
     const objectURL = URL.createObjectURL(
       new Blob([code], { type: "application/javascript" }),
     );
@@ -42,6 +31,13 @@ const fetching = async (input: string, resolver = "text") => {
       return (await import(objectURL)) as Record<string, object>;
     } finally {
       URL.revokeObjectURL(objectURL);
+    }
+  },
+  fetching = async (input: string) => {
+    try {
+      return await ofetch(input);
+    } catch (error) {
+      consola.error(error);
     }
   };
 
