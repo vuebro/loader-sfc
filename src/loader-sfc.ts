@@ -22,14 +22,16 @@ import hash from "hash-sum";
 /*                              Служебные функции                             */
 /* -------------------------------------------------------------------------- */
 
-const fetchText = async (input: string, text = "") => {
+const fetching = async (input: string, resolver = "text") => {
     try {
       const response = await fetch(input);
-      if (response.ok) return await response.text();
-      else throw new Error(`Response status: ${response.status.toString()}`);
+      if (response.ok) {
+        const method = response[resolver as keyof Response];
+        if (typeof method === "function") return await method();
+        else throw new Error(`Invalid resolver "${resolver}"`);
+      } else throw new Error(`Response status: ${response.status.toString()}`);
     } catch (error) {
       consola.error(error);
-      return text;
     }
   },
   inject = async (code: string) => {
@@ -78,7 +80,7 @@ export default async (
   /* -------------------------------------------------------------------------- */
 
   const { errors: parseErrors, descriptor } = parse(
-    await fetchText(filename, "<template></template>"),
+    (await fetching(filename)) ?? "<template></template>",
     { filename, ...parseOptions },
   );
 
@@ -115,7 +117,7 @@ export default async (
             return "";
           } else {
             const { errors, code } = await compileStyleAsync({
-              source: src ? await fetchText(src) : content,
+              source: src ? ((await fetching(src)) ?? "") : content,
               filename,
               modules,
               scoped,
