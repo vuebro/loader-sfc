@@ -1,29 +1,36 @@
-import type {
-  SFCAsyncStyleCompileOptions,
-  SFCTemplateCompileOptions,
-  SFCScriptCompileOptions,
-  CompilerOptions,
-  SFCParseOptions,
-} from "vue/compiler-sfc";
 import type { ParserPlugin } from "@babel/parser";
-import type { Transform, Options } from "sucrase";
+import type { Options, Transform } from "sucrase";
+import type {
+  CompilerOptions,
+  SFCAsyncStyleCompileOptions,
+  SFCParseOptions,
+  SFCScriptCompileOptions,
+  SFCTemplateCompileOptions,
+} from "vue/compiler-sfc";
 
+import { consola } from "consola/browser";
+import hash from "hash-sum";
+import { ofetch } from "ofetch";
+import { transform } from "sucrase";
 import {
+  compileScript,
   compileStyleAsync,
   compileTemplate,
-  compileScript,
   parse,
 } from "vue/compiler-sfc";
-import { consola } from "consola/browser";
-import { transform } from "sucrase";
-import { ofetch } from "ofetch";
-import hash from "hash-sum";
 
 /* -------------------------------------------------------------------------- */
 /*                              Служебные функции                             */
 /* -------------------------------------------------------------------------- */
 
-const inject = async (code: string) => {
+const fetching = async (input: string) => {
+    try {
+      return await ofetch(input);
+    } catch (error) {
+      consola.error(error);
+    }
+  },
+  inject = async (code: string) => {
     const objectURL = URL.createObjectURL(
       new Blob([code], { type: "application/javascript" }),
     );
@@ -31,13 +38,6 @@ const inject = async (code: string) => {
       return (await import(objectURL)) as Record<string, object>;
     } finally {
       URL.revokeObjectURL(objectURL);
-    }
-  },
-  fetching = async (input: string) => {
-    try {
-      return await ofetch(input);
-    } catch (error) {
-      consola.error(error);
     }
   };
 
@@ -48,6 +48,7 @@ const inject = async (code: string) => {
 export default async (
   filename: string,
   {
+    parseOptions,
     scriptOptions: {
       templateOptions: {
         compilerOptions: { expressionPlugins, ...restCompilerOptions } = {},
@@ -55,15 +56,14 @@ export default async (
       } = {},
       ...restScriptOptions
     } = {},
-    parseOptions,
     styleOptions,
   }:
+    | undefined
     | {
-        styleOptions?: Partial<SFCAsyncStyleCompileOptions>;
-        scriptOptions?: Partial<SFCScriptCompileOptions>;
         parseOptions?: Partial<SFCParseOptions>;
-      }
-    | undefined = {},
+        scriptOptions?: Partial<SFCScriptCompileOptions>;
+        styleOptions?: Partial<SFCAsyncStyleCompileOptions>;
+      } = {},
 ) => {
   /* -------------------------------------------------------------------------- */
   /*                    Генерация уникального идентификатора                    */
@@ -75,7 +75,7 @@ export default async (
   /*                 Загрузка и парсинг файла с компонентом Vue                 */
   /* -------------------------------------------------------------------------- */
 
-  const { errors: parseErrors, descriptor } = parse(
+  const { descriptor, errors: parseErrors } = parse(
     (await fetching(filename)) ?? "<template></template>",
     { filename, ...parseOptions },
   );
@@ -84,7 +84,7 @@ export default async (
   /*                         Обработка полученных данных                        */
   /* -------------------------------------------------------------------------- */
 
-  const { scriptSetup, template, slotted, script, styles } = descriptor;
+  const { script, scriptSetup, slotted, styles, template } = descriptor;
   const langs = new Set(
       [script, scriptSetup]
         .filter((scriptBlock) => scriptBlock !== null)
@@ -96,7 +96,7 @@ export default async (
             ] as ParserPlugin[],
         ),
     ),
-    { content: source = "", ast } = template ?? {};
+    { ast, content: source = "" } = template ?? {};
 
   /* -------------------------------------------------------------------------- */
   /*                      Загрузка и компилирование стилей                      */
@@ -106,18 +106,18 @@ export default async (
   const styleErrors: Error[] = [];
   const style = !(document.getElementById(id) instanceof HTMLStyleElement)
     ? Promise.all(
-        styles.map(async ({ scoped = false, content, module, src }) => {
+        styles.map(async ({ content, module, scoped = false, src }) => {
           const modules = !!module;
           if (modules && !styleWarning) {
             styleWarning = "<style module> is not supported in the playground.";
             return "";
           } else {
-            const { errors, code } = await compileStyleAsync({
-              source: src ? ((await fetching(src)) ?? "") : content,
+            const { code, errors } = await compileStyleAsync({
               filename,
+              id,
               modules,
               scoped,
-              id,
+              source: src ? ((await fetching(src)) ?? "") : content,
               ...styleOptions,
             });
             styleErrors.push(...errors);
@@ -135,27 +135,27 @@ export default async (
       expressionPlugins: [
         ...new Set([...(expressionPlugins ?? []), ...langs]),
       ] as ParserPlugin[],
-      scopeId: id,
       filename,
+      scopeId: id,
       slotted,
       ...restCompilerOptions,
     },
     templateOptions: Partial<SFCTemplateCompileOptions> = {
-      scoped: styles.some(({ scoped }) => scoped),
       compilerOptions,
       filename,
-      slotted,
       id,
+      scoped: styles.some(({ scoped }) => scoped),
+      slotted,
       ...restTemplateOptions,
     },
     scriptOptions: SFCScriptCompileOptions = {
-      templateOptions,
       id,
+      templateOptions,
       ...restScriptOptions,
     },
     sucraseOptions: Options = {
-      transforms: [...langs] as Transform[],
       jsxRuntime: "preserve",
+      transforms: [...langs] as Transform[],
     };
 
   /* -------------------------------------------------------------------------- */
@@ -163,9 +163,9 @@ export default async (
   /* -------------------------------------------------------------------------- */
 
   const {
-    warnings: scriptWarnings,
     bindings,
     content,
+    warnings: scriptWarnings,
   } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
 
   /* -------------------------------------------------------------------------- */
@@ -179,15 +179,15 @@ export default async (
   /* -------------------------------------------------------------------------- */
 
   const {
+    code,
     errors: templateErrors,
     tips: templateTips,
-    code,
   } = template && (!scriptSetup || !scriptOptions.inlineTemplate)
     ? compileTemplate({
         ...ast,
         filename,
-        source,
         id,
+        source,
         ...templateOptions,
       })
     : {};
