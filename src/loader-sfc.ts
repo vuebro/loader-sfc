@@ -25,10 +25,11 @@ import {
 
 const fetching = async (input: string) => {
     try {
-      return await ofetch(input);
+      return await ofetch(input, { responseType: "text" });
     } catch (error) {
       consola.error(error);
     }
+    return;
   },
   inject = async (code: string) => {
     const objectURL = URL.createObjectURL(
