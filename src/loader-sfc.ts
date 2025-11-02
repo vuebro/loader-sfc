@@ -58,14 +58,16 @@ export default async (
         styleOptions?: Partial<SFCAsyncStyleCompileOptions>;
       } = {},
 ) => {
-  const id = `data-v-${hash(filename)}`;
+  let styleWarning = "";
 
-  const { descriptor, errors: parseErrors } = parse(
-    (await fetching(filename)) ?? "<template></template>",
-    { filename, ...parseOptions },
-  );
+  const id = `data-v-${hash(filename)}`,
+    styleErrors: Error[] = [],
+    { descriptor, errors: parseErrors } = parse(
+      (await fetching(filename)) ?? "<template></template>",
+      { filename, ...parseOptions },
+    ),
+    { script, scriptSetup, slotted, styles, template } = descriptor;
 
-  const { script, scriptSetup, slotted, styles, template } = descriptor;
   const langs = new Set(
       [script, scriptSetup]
         .filter((scriptBlock) => scriptBlock !== null)
@@ -77,34 +79,7 @@ export default async (
             ] as ParserPlugin[],
         ),
     ),
-    { ast, content: source = "" } = template ?? {};
-
-  let styleWarning = "";
-  const styleErrors: Error[] = [];
-  const style = !(document.getElementById(id) instanceof HTMLStyleElement)
-    ? Promise.all(
-        styles.map(async ({ content, module, scoped = false, src }) => {
-          const modules = !!module;
-          if (modules && !styleWarning) {
-            styleWarning = "<style module> is not supported in the playground.";
-            return "";
-          } else {
-            const { code, errors } = await compileStyleAsync({
-              filename,
-              id,
-              modules,
-              scoped,
-              source: src ? ((await fetching(src)) ?? "") : content,
-              ...styleOptions,
-            });
-            styleErrors.push(...errors);
-            return code;
-          }
-        }),
-      )
-    : Promise.resolve([]);
-
-  const compilerOptions: CompilerOptions = {
+    compilerOptions: CompilerOptions = {
       expressionPlugins: [
         ...new Set([...(expressionPlugins ?? []), ...langs]),
       ] as ParserPlugin[],
@@ -126,16 +101,39 @@ export default async (
       templateOptions,
       ...restScriptOptions,
     },
+    style = !(document.getElementById(id) instanceof HTMLStyleElement)
+      ? Promise.all(
+          styles.map(async ({ content, module, scoped = false, src }) => {
+            const modules = !!module;
+            if (modules && !styleWarning) {
+              styleWarning =
+                "<style module> is not supported in the playground.";
+              return "";
+            } else {
+              const { code, errors } = await compileStyleAsync({
+                filename,
+                id,
+                modules,
+                scoped,
+                source: src ? ((await fetching(src)) ?? "") : content,
+                ...styleOptions,
+              });
+              styleErrors.push(...errors);
+              return code;
+            }
+          }),
+        )
+      : Promise.resolve([]),
     sucraseOptions: Options = {
       jsxRuntime: "preserve",
       transforms: [...langs] as Transform[],
-    };
-
-  const {
-    bindings,
-    content,
-    warnings: scriptWarnings,
-  } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
+    },
+    { ast, content: source = "" } = template ?? {},
+    {
+      bindings,
+      content,
+      warnings: scriptWarnings,
+    } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
 
   if (bindings) compilerOptions.bindingMetadata = bindings;
 
@@ -168,16 +166,16 @@ export default async (
   });
 
   const [styleResult, scriptResult, templateResult] = await Promise.all([
-    style,
-    content
-      ? inject(langs.size ? transform(content, sucraseOptions).code : content)
-      : Promise.resolve(undefined),
-    code
-      ? inject(langs.size ? transform(code, sucraseOptions).code : code)
-      : Promise.resolve(undefined),
-  ]);
+      style,
+      content
+        ? inject(langs.size ? transform(content, sucraseOptions).code : content)
+        : Promise.resolve(undefined),
+      code
+        ? inject(langs.size ? transform(code, sucraseOptions).code : code)
+        : Promise.resolve(undefined),
+    ]),
+    textContent = styleResult.join("\n").trim();
 
-  const textContent = styleResult.join("\n").trim();
   if (textContent) {
     const el = document.createElement("style");
     el.id = id;
