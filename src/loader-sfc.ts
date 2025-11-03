@@ -186,18 +186,12 @@ export default async (
     : {};
 
   [...parseErrors, ...(templateErrors ?? []), ...styleErrors].forEach(
-    (error) => {
-      consola.error(error);
-    },
+    consola.error,
   );
   [...(scriptWarnings ?? []), ...(styleWarning ? [styleWarning] : [])].forEach(
-    (warn) => {
-      consola.warn(warn);
-    },
+    consola.warn,
   );
-  [...(templateTips ?? [])].forEach((info) => {
-    consola.info(info);
-  });
+  [...(templateTips ?? [])].forEach(consola.info);
 
   const [styleResult, scriptResult, templateResult] = await Promise.all([
       style,
