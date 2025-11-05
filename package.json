@@ -44,8 +44,8 @@
     "@rollup/plugin-terser": "^0.4.4",
     "@types/hash-sum": "^1.0.2",
     "@types/node": "^24.10.0",
-    "@vuebro/configs": "^1.1.59",
+    "@vuebro/configs": "^1.1.62",
     "eslint": "^9.39.1",
-    "vite": "^7.1.12"
+    "vite": "^7.2.0"
   }
 }
