@@ -1,13 +1,16 @@
 {
   "name": "@vuebro/loader-sfc",
   "version": "2.3.25",
-  "description": "Vue3 Single File Component (SFC) loader. Load .vue files directly from your browser without any build step.",
+  "description": "A lightweight library that enables loading Vue 3 Single File Components (.vue files) directly in the browser at runtime without requiring a build step. Supports TypeScript and JSX transformations for dynamic component loading.",
   "keywords": [
     "vue",
-    "vuejs",
-    "vue3",
-    "component-loader",
-    "nobuild"
+    "sfc",
+    "loader",
+    "runtime",
+    "typescript",
+    "jsx",
+    "dynamic",
+    "components"
   ],
   "homepage": "https://github.com/vuebro/loader-sfc#readme",
   "bugs": {
@@ -18,10 +21,7 @@
     "url": "git+https://github.com/vuebro/loader-sfc.git"
   },
   "license": "AGPL-3.0-only",
-  "author": {
-    "name": "Jerry Bruwes",
-    "email": "jbruwes@gmail.com"
-  },
+  "author": "Jerry Bruwes <jbruwes@gmail.com> (https://jbruwes.github.io)",
   "type": "module",
   "main": "./dist/loader-sfc.js",
   "types": "./dist/loader-sfc.d.ts",
@@ -38,14 +38,14 @@
     "hash-sum": "^2.0.0",
     "ofetch": "^1.5.1",
     "sucrase": "^3.35.0",
-    "vue": "^3.5.23"
+    "vue": "^3.5.24"
   },
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
     "@types/hash-sum": "^1.0.2",
     "@types/node": "^24.10.0",
-    "@vuebro/configs": "^1.1.63",
+    "@vuebro/configs": "^1.1.75",
     "eslint": "^9.39.1",
-    "vite": "^7.2.1"
+    "vite": "^7.2.2"
   }
 }
