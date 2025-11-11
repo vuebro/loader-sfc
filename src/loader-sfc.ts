@@ -129,29 +129,30 @@ export default async (
       templateOptions,
       ...restScriptOptions,
     },
-    style = !(document.getElementById(id) instanceof HTMLStyleElement)
-      ? Promise.all(
-          styles.map(async ({ content, module, scoped = false, src }) => {
-            const modules = !!module;
-            if (modules && !styleWarning) {
-              styleWarning =
-                "<style module> is not supported in the playground.";
-              return "";
-            } else {
-              const { code, errors } = await compileStyleAsync({
-                filename,
-                id,
-                modules,
-                scoped,
-                source: src ? ((await fetching(src)) ?? "") : content,
-                ...styleOptions,
-              });
-              styleErrors.push(...errors);
-              return code;
-            }
-          }),
-        )
-      : Promise.resolve([]),
+    style =
+      document.getElementById(id) instanceof HTMLStyleElement
+        ? Promise.resolve([])
+        : Promise.all(
+            styles.map(async ({ content, module, scoped = false, src }) => {
+              const modules = !!module;
+              if (modules && !styleWarning) {
+                styleWarning =
+                  "<style module> is not supported in the playground.";
+                return "";
+              } else {
+                const { code, errors } = await compileStyleAsync({
+                  filename,
+                  id,
+                  modules,
+                  scoped,
+                  source: src ? ((await fetching(src)) ?? "") : content,
+                  ...styleOptions,
+                });
+                styleErrors.push(...errors);
+                return code;
+              }
+            }),
+          ),
     sucraseOptions: Options = {
       jsxRuntime: "preserve",
       transforms: [...langs] as Transform[],
