@@ -1,6 +1,6 @@
 {
   "name": "@vuebro/loader-sfc",
-  "version": "2.3.28",
+  "version": "2.3.29",
   "description": "A lightweight library that enables loading Vue 3 Single File Components (.vue files) directly in the browser at runtime without requiring a build step. Supports TypeScript and JSX transformations for dynamic component loading.",
   "keywords": [
     "vue",
