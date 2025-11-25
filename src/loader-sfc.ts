@@ -19,12 +19,6 @@ import {
   parse,
 } from "vue/compiler-sfc";
 
-/**
- * Fetches content from a given input URL
- *
- * @param input The URL or file path to fetch
- * @returns The content of the file or undefined if there was an error
- */
 const fetching = async (input: string) => {
     try {
       return await ofetch(input, { responseType: "text" });
@@ -33,12 +27,6 @@ const fetching = async (input: string) => {
     }
     return;
   },
-  /**
-   * Dynamically imports JavaScript code by creating an object URL
-   *
-   * @param code The JavaScript code to inject and import
-   * @returns The imported module as a record of objects
-   */
   inject = async (code: string) => {
     const objectURL = URL.createObjectURL(
       new Blob([code], { type: "application/javascript" }),
@@ -50,22 +38,6 @@ const fetching = async (input: string) => {
     }
   };
 
-/**
- * Loads and compiles a Vue SFC file dynamically in the browser
- *
- * @param filename The path or URL to the .vue file to load
- * @param [options] Configuration options for parsing, scripting, and styling
- * @param [options.parseOptions] Options for parsing the SFC
- * @param [options.scriptOptions] Options for compiling the script section
- * @param [options.scriptOptions.templateOptions] Options for compiling the
- *   template
- * @param [options.scriptOptions.templateOptions.compilerOptions] Compiler
- *   options
- * @param [options.scriptOptions.templateOptions.compilerOptions.expressionPlugins]
- *   Expression plugins to use
- * @param [options.styleOptions] Options for compiling the style sections
- * @returns A compiled Vue component object
- */
 export default async (
   filename: string,
   {
