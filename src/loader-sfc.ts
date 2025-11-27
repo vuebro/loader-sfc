@@ -15,7 +15,7 @@ import {
   parse,
 } from "@vue/compiler-sfc";
 import { consola } from "consola/browser";
-import hash from "hash-sum";
+import hash_sum from "hash-sum";
 import { ofetch } from "ofetch";
 import { transform } from "sucrase";
 
@@ -60,14 +60,15 @@ export default async (
 ) => {
   let styleWarning = "";
 
-  const styleErrors: Error[] = [],
+  const hash = hash_sum(sfc),
+    styleErrors: Error[] = [],
     { descriptor, errors: parseErrors } = parse(
       sfc || "<template></template>",
-      parseOptions,
+      { filename: `${hash}.vue`, ...parseOptions },
     ),
     { filename, script, scriptSetup, slotted, styles, template } = descriptor;
 
-  const id = `data-v-${hash(sfc)}`,
+  const id = `data-v-${hash}`,
     langs = new Set(
       [script, scriptSetup]
         .filter((scriptBlock) => scriptBlock !== null)
