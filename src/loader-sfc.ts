@@ -39,7 +39,7 @@ const fetching = async (input: string) => {
   };
 
 export default async (
-  filename: string,
+  sfc: string,
   {
     parseOptions,
     scriptOptions: {
@@ -60,15 +60,17 @@ export default async (
 ) => {
   let styleWarning = "";
 
-  const id = `data-v-${hash(filename)}`,
-    styleErrors: Error[] = [],
+  const styleErrors: Error[] = [],
     { descriptor, errors: parseErrors } = parse(
-      (await fetching(filename)) ?? "<template></template>",
-      { filename, ...parseOptions },
+      sfc || "<template></template>",
+      parseOptions,
     ),
-    { script, scriptSetup, slotted, styles, template } = descriptor;
+    { filename, script, scriptSetup, slotted, styles, template } = descriptor;
 
-  const langs = new Set(
+  console.log({ filename });
+
+  const id = `data-v-${hash(filename)}`,
+    langs = new Set(
       [script, scriptSetup]
         .filter((scriptBlock) => scriptBlock !== null)
         .flatMap(
@@ -135,6 +137,8 @@ export default async (
       content,
       warnings: scriptWarnings,
     } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
+
+  console.log({ id });
 
   if (bindings) compilerOptions.bindingMetadata = bindings;
 
