@@ -1,23 +1,23 @@
 import type { ParserPlugin } from "@babel/parser";
-import type { Options, Transform } from "sucrase";
 import type {
   CompilerOptions,
   SFCAsyncStyleCompileOptions,
   SFCParseOptions,
   SFCScriptCompileOptions,
   SFCTemplateCompileOptions,
-} from "vue/compiler-sfc";
+} from "@vue/compiler-sfc";
+import type { Options, Transform } from "sucrase";
 
-import { consola } from "consola/browser";
-import hash from "hash-sum";
-import { ofetch } from "ofetch";
-import { transform } from "sucrase";
 import {
   compileScript,
   compileStyleAsync,
   compileTemplate,
   parse,
-} from "vue/compiler-sfc";
+} from "@vue/compiler-sfc";
+import { consola } from "consola/browser";
+import hash from "hash-sum";
+import { ofetch } from "ofetch";
+import { transform } from "sucrase";
 
 const fetching = async (input: string) => {
     try {
@@ -135,8 +135,6 @@ export default async (
       content,
       warnings: scriptWarnings,
     } = script || scriptSetup ? compileScript(descriptor, scriptOptions) : {};
-
-  console.log({ id });
 
   if (bindings) compilerOptions.bindingMetadata = bindings;
 
