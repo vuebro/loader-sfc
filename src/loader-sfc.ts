@@ -67,9 +67,7 @@ export default async (
     ),
     { filename, script, scriptSetup, slotted, styles, template } = descriptor;
 
-  console.log({ filename });
-
-  const id = `data-v-${hash(filename)}`,
+  const id = `data-v-${hash(sfc)}`,
     langs = new Set(
       [script, scriptSetup]
         .filter((scriptBlock) => scriptBlock !== null)

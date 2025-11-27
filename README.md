@@ -41,8 +41,8 @@ To load .vue files dynamically at runtime just use the `loadModule` function:
 import { defineAsyncComponent } from "vue";
 import loadModule from "@vuebro/loader-sfc";
 
-const AdminPage = defineAsyncComponent(() =>
-  loadModule("./components/AdminPageComponent.vue"),
+const AdminPage = defineAsyncComponent(async () =>
+  loadModule(await (await fetch("./components/AdminPageComponent.vue")).text()),
 );
 </script>
 
@@ -59,8 +59,8 @@ You can pass configuration options to customize the compilation process:
 import { defineAsyncComponent } from "vue";
 import loadModule from "@vuebro/loader-sfc";
 
-const MyComponent = defineAsyncComponent(() =>
-  loadModule("./components/MyComponent.vue", {
+const MyComponent = defineAsyncComponent(async () =>
+  loadModule(await (await fetch("./components/MyComponent.vue")).text(), {
     scriptOptions: {
       templateOptions: {
         compilerOptions: {
