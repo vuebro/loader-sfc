@@ -35,7 +35,7 @@
   },
   "prettier": "@vuebro/configs/prettierrc",
   "dependencies": {
-    "@vue/compiler-sfc": "^3.5.25",
+    "@vue/compiler-sfc": "^3.5.26",
     "consola": "^3.4.2",
     "hash-sum": "^2.0.0",
     "ofetch": "^1.5.1",
@@ -44,9 +44,9 @@
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
     "@types/hash-sum": "^1.0.2",
-    "@types/node": "^24.10.1",
-    "@vuebro/configs": "^1.2.24",
-    "eslint": "^9.39.1",
-    "vite": "^7.2.6"
+    "@types/node": "^25.0.3",
+    "@vuebro/configs": "^1.2.29",
+    "eslint": "^9.39.2",
+    "vite": "^7.3.0"
   }
 }
