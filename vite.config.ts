@@ -1,4 +1,3 @@
-import terser from "@rollup/plugin-terser";
 import config from "@vuebro/configs/vite";
 import { defineConfig, mergeConfig } from "vite";
 
@@ -12,10 +11,8 @@ export default mergeConfig(
         fileName: "loader-sfc.esm-browser.prod",
         formats: ["es"],
       },
-      rollupOptions: {
-        external: ["vue"],
-        plugins: [terser()],
-      },
+      minify: "terser",
+      rollupOptions: { external: ["vue"] },
     },
   }),
 );
