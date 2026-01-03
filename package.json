@@ -36,17 +36,15 @@
   "prettier": "@vuebro/configs/prettierrc",
   "dependencies": {
     "@vue/compiler-sfc": "^3.5.26",
-    "consola": "^3.4.2",
     "hash-sum": "^2.0.0",
-    "ofetch": "^1.5.1",
     "sucrase": "^3.35.1"
   },
   "devDependencies": {
-    "@rollup/plugin-terser": "^0.4.4",
     "@types/hash-sum": "^1.0.2",
     "@types/node": "^25.0.3",
-    "@vuebro/configs": "^1.2.34",
+    "@vuebro/configs": "^1.2.35",
     "eslint": "^9.39.2",
+    "terser": "^5.44.1",
     "vite": "^7.3.0"
   }
 }
