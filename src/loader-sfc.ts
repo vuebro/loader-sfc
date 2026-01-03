@@ -14,16 +14,16 @@ import {
   compileTemplate,
   parse,
 } from "@vue/compiler-sfc";
-import { consola } from "consola/browser";
 import hash_sum from "hash-sum";
-import { ofetch } from "ofetch";
 import { transform } from "sucrase";
 
 const fetching = async (input: string) => {
     try {
-      return await ofetch(input, { responseType: "text" });
+      const response = await fetch(input);
+      if (response.ok) return await response.text();
+      else throw new Error(response.statusText);
     } catch (error) {
-      consola.error(error);
+      console.error(error);
     }
     return;
   },
@@ -154,12 +154,12 @@ export default async (
     : {};
 
   [...parseErrors, ...(templateErrors ?? []), ...styleErrors].forEach(
-    consola.error,
+    console.error,
   );
   [...(scriptWarnings ?? []), ...(styleWarning ? [styleWarning] : [])].forEach(
-    consola.warn,
+    console.warn,
   );
-  [...(templateTips ?? [])].forEach(consola.info);
+  [...(templateTips ?? [])].forEach(console.info);
 
   const [styleResult, scriptResult, templateResult] = await Promise.all([
       style,
